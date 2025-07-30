@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Exit cleanly if signals are received.
+trap "echo The service is terminated; exit" HUP INT QUIT TERM
+
 if [[ $AUTO_UPDATE = "on" ]]; then
     DEBIAN_FRONTEND=noninteractive apt update && apt -y -o Dpkg::Options::="--force-confdef" -o \
     Dpkg::Options::="--force-confnew" install -y --only-upgrade expressvpn --no-install-recommends \
@@ -45,28 +48,36 @@ done
 
 if [[ $SOCKS = "on" ]]; then
     SOCKS_CMD="microsocks "
-    
     if [[ $SOCKS_LOGS = "false" ]]; then
         SOCKS_CMD+="-q "
     fi
-    
     if [[ -n "$SOCKS_USER" && -z "$SOCKS_PASS" ]] || [[ -z "$SOCKS_USER" && -n "$SOCKS_PASS" ]]; then
         echo "Error: Both SOCKS_USER and SOCKS_PASS must be set, or neither."
         exit
     elif [[ -n "$SOCKS_USER" && -n "$SOCKS_PASS" ]]; then
-        
         if [[ $SOCKS_AUTH_ONCE = "true" ]]; then
             SOCKS_CMD+="-1 "
         fi
-        
         if [[ $SOCKS_WHITELIST != "" ]]; then
             SOCKS_CMD+="-w $SOCKS_WHITELIST "
         fi
-        
         SOCKS_CMD+="-u $SOCKS_USER -P $SOCKS_PASS "
     fi
     SOCKS_CMD+="-i $SOCKS_IP -p $SOCKS_PORT"
     $SOCKS_CMD &
 fi
 
-exec "$@"
+# Copy resolv.conf to /shared_data for other containers on the network.
+cp /etc/resolv.conf /shared_data/
+
+# Check connection status and exit if disconnected.
+STATUS=1
+while [ $STATUS -ne 0 ];
+do
+    sleep 5s
+    expressvpn status > /tmp/status.txt
+    grep -i "Not connected" /tmp/status.txt
+    STATUS=$?
+done
+echo "ExpressVPN has disconnected unexpectedly."
+exit 1
