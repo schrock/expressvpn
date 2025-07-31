@@ -70,14 +70,7 @@ fi
 # Copy resolv.conf to /shared_data for other containers on the network.
 cp /etc/resolv.conf /shared_data/
 
-# Check connection status and exit if disconnected.
-STATUS=1
-while [ $STATUS -ne 0 ];
+while true;
 do
     sleep 5s
-    expressvpn status > /tmp/status.txt
-    grep -i "Not connected" /tmp/status.txt
-    STATUS=$?
 done
-echo "ExpressVPN has disconnected unexpectedly."
-exit 1
