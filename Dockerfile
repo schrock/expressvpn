@@ -53,6 +53,6 @@ RUN apt purge --autoremove -y wget build-essential git \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /var/log/*.log
 
-HEALTHCHECK --start-period=30s --timeout=5s --interval=2m --retries=3 CMD bash /expressvpn/healthcheck.sh
+HEALTHCHECK --start-period=30s --interval=5m --retries=1 CMD bash /expressvpn/healthcheck.sh
 
 ENTRYPOINT ["/bin/bash", "/expressvpn/start.sh"]
