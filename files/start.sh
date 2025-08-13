@@ -3,12 +3,6 @@
 # Exit cleanly if signals are received.
 trap "echo The service is terminated; exit" HUP INT QUIT TERM
 
-if [[ $AUTO_UPDATE = "on" ]]; then
-    DEBIAN_FRONTEND=noninteractive apt update && apt -y -o Dpkg::Options::="--force-confdef" -o \
-    Dpkg::Options::="--force-confnew" install -y --only-upgrade expressvpn --no-install-recommends \
-    && apt autoclean && apt clean && apt autoremove && rm -rf /var/lib/apt/lists/* && rm -rf /var/log/*.log
-fi
-
 if [[ -f "/etc/resolv.conf" ]]; then
     cp /etc/resolv.conf /etc/resolv.conf.bak
     umount /etc/resolv.conf &>/dev/null
@@ -46,31 +40,16 @@ do
     echo "allowing dns server traffic in iptables: ${i}"
 done
 
-if [[ $SOCKS = "on" ]]; then
-    SOCKS_CMD="microsocks "
-    if [[ $SOCKS_LOGS = "false" ]]; then
-        SOCKS_CMD+="-q "
-    fi
-    if [[ -n "$SOCKS_USER" && -z "$SOCKS_PASS" ]] || [[ -z "$SOCKS_USER" && -n "$SOCKS_PASS" ]]; then
-        echo "Error: Both SOCKS_USER and SOCKS_PASS must be set, or neither."
-        exit
-    elif [[ -n "$SOCKS_USER" && -n "$SOCKS_PASS" ]]; then
-        if [[ $SOCKS_AUTH_ONCE = "true" ]]; then
-            SOCKS_CMD+="-1 "
-        fi
-        if [[ $SOCKS_WHITELIST != "" ]]; then
-            SOCKS_CMD+="-w $SOCKS_WHITELIST "
-        fi
-        SOCKS_CMD+="-u $SOCKS_USER -P $SOCKS_PASS "
-    fi
-    SOCKS_CMD+="-i $SOCKS_IP -p $SOCKS_PORT"
-    $SOCKS_CMD &
-fi
-
 # Copy resolv.conf to /shared_data for other containers on the network.
 cp /etc/resolv.conf /shared_data/
 
 while true;
 do
-    sleep 5s
+    sleep 5m
+    expressvpn status | grep -iq "Connected to"
+    if [ $? -ne 0 ];
+    then
+        echo "ExpressVPN is disconnected. Attempting to reconnect..."
+        expressvpn connect $SERVER
+    fi
 done
